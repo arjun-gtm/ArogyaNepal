@@ -47,7 +47,7 @@ const MyAppointments = () => {
   const appointmentStripe = async (appointmentId) => {
     try {
         // Send appointmentId to the backend to create the Stripe payment session
-        const { data } = await axios.post(backendUrl + '/api/user/payment-stripe', { appointmentId }, { headers: { token } });
+        const { data } = await axios.post(backendUrl + 'api/user/payment-stripe', { appointmentId }, { headers: { token } });
         if (data.success) {
             // Redirect user to Stripe Checkout session
             window.location.href = data.url;
@@ -66,7 +66,7 @@ const MyAppointments = () => {
         const verifyPayment = async () => {
             try {
                 const { data } = await axios.post(
-                    `${backendUrl}/api/user/verify-stripe`,
+                    `${backendUrl}api/user/verify-stripe`,
                     { sessionId },
                     { headers: { token } }
                 );
