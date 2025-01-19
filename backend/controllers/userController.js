@@ -6,8 +6,8 @@ import { v2 as cloudinary } from 'cloudinary'
 import doctorModel from '../models/doctorModel.js'
 import appointmentModel from '../models/appointmentModel.js'
 import axios from 'axios'
-import Stripe from 'stripe'
-import stripeLib from 'stripe'
+// import Stripe from 'stripe'
+// import stripeLib from 'stripe'
 
 
 //API to register user
@@ -211,7 +211,6 @@ const listAppointment = async (req, res) => {
 }
 
 //API to cancel appointment
-
 const cancelAppointment = async (req, res) => {
 
     try {
@@ -247,90 +246,125 @@ const cancelAppointment = async (req, res) => {
     }
 }
 
-
-
-// API to create a Stripe session
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
-
-const paymentStripe = async (req, res) => {
+const initiateKhaltiPayment = async (req, res) => {
     try {
         const { appointmentId } = req.body;
+
         const appointmentData = await appointmentModel.findById(appointmentId);
         
         if (!appointmentData || appointmentData.cancelled) {
             return res.json({ success: false, message: "Invalid Appointment" });
         }
 
-        // Create Stripe Checkout Session with direct redirect to my-appointments
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            line_items: [
-                {
-                    price_data: {
-                        currency: process.env.CURRENCY.toLowerCase(),
-                        product_data: {
-                            name: `Appointment Payment - ${appointmentId}`,
-                        },
-                        unit_amount: appointmentData.amount * 100,
-                    },
-                    quantity: 1,
-                },
-            ],
-            mode: 'payment',
-            success_url: `${process.env.FRONTEND_URL}/my-appointments?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${process.env.FRONTEND_URL}/my-appointments`,
-            metadata: { appointmentId },
+        // Get user data from the database
+        const userData = await userModel.findById(appointmentData.userId);
+        if (!userData) {
+            return res.json({ success: false, message: "User not found" });
+        }
+
+        // Store the appointmentId in a custom field that Khalti will return
+        const payload = {
+            return_url: `${process.env.FRONTEND_URL}/my-appointments`,
+            website_url: process.env.FRONTEND_URL,
+            amount: appointmentData.amount * 100,
+            purchase_order_id: appointmentId.toString(),
+            purchase_order_name: `Appointment Payment - ${appointmentId}`,
+            customer_info: {
+                name: userData.name || 'Customer',
+                email: userData.email || '',
+                phone: userData.phone || ''
+            },
+            metadata: {
+                appointmentId: appointmentId.toString()
+            }
+        };
+
+        const response = await axios.post(
+            'https://a.khalti.com/api/v2/epayment/initiate/',
+            payload,
+            {
+                headers: {
+                    'Authorization': `Key ${process.env.KHALTI_SECRET_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        // Include appointmentId in the success response
+        res.json({ 
+            success: true, 
+            paymentUrl: `https://test-pay.khalti.com/?pidx=${response.data.pidx}`,
+            appointmentId: appointmentId.toString()
         });
 
-        res.json({ success: true, url: session.url });
     } catch (error) {
-        console.log(error);
-        res.json({ success: false, message: error.message });
+        res.json({ 
+            success: false, 
+            message: error.response?.data?.message || error.message 
+        });
     }
 };
 
-// API to verify Stripe payment
-const verifyStripePayment = async (req, res) => {
+const verifyKhaltiPayment = async (req, res) => {
     try {
-        const { sessionId } = req.body;
-        
-        // First verify the session exists and was paid
-        const session = await stripe.checkout.sessions.retrieve(sessionId);
-        
-        if (session.payment_status === 'paid') {
-            // Extract the appointmentId from metadata
-            const { appointmentId } = session.metadata;
-            
-            // Update the appointment payment status
-            const result = await appointmentModel.updateOne(
-                { _id: appointmentId },
-                { $set: { payment: true } }
+        const { pidx, appointmentId } = req.body;
+
+        // First verify the appointment exists
+        const appointment = await appointmentModel.findById(appointmentId);
+        if (!appointment) {
+            return res.json({
+                success: false,
+                message: "Appointment not found in database"
+            });
+        }
+
+        // Verify payment with Khalti
+        const response = await axios.post(
+            'https://a.khalti.com/api/v2/epayment/lookup/',
+            { pidx },
+            {
+                headers: {
+                    'Authorization': `Key ${process.env.KHALTI_SECRET_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        console.log('Khalti verification response:', response.data);
+
+        if (response.data.status === 'Completed') {
+
+            // Update appointment using the appointmentId
+            const result = await appointmentModel.findByIdAndUpdate(
+                appointmentId,
+                { payment: true },
+                { new: true }
             );
 
-            if (result.modifiedCount === 0) {
-                return res.json({ 
-                    success: false, 
-                    message: "Failed to update appointment payment status" 
+            if (!result) {
+                return res.json({
+                    success: false,
+                    message: "Failed to update appointment payment status"
                 });
             }
 
-            return res.json({ 
-                success: true, 
+            return res.json({
+                success: true,
                 message: "Payment successful and appointment updated"
             });
-        } else {
-            return res.json({ 
-                success: false, 
-                message: "Payment not completed" 
-            });
         }
+
+        return res.json({
+            success: false,
+            message: `Payment status: ${response.data.status}`
+        });
+
     } catch (error) {
-        console.error("Payment verification error:", error);
-        return res.json({ 
-            success: false, 
-            message: error.message || "Payment verification failed" 
+        return res.json({
+            success: false,
+            message: error.response?.data?.message || error.message
         });
     }
-}
+};
 
-export { registerUser, loginUser, getProfile, updateProfile, bookAppointment, listAppointment, cancelAppointment, paymentStripe, verifyStripePayment }
+export { registerUser, loginUser, getProfile, updateProfile, bookAppointment, listAppointment, cancelAppointment, initiateKhaltiPayment, verifyKhaltiPayment }

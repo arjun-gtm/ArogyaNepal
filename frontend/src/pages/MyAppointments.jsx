@@ -3,18 +3,19 @@ import { AppContext } from '../context/AppContext'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useNavigate } from 'react-router-dom'
+import KhaltiCheckout from "khalti-checkout-web"
 
 const MyAppointments = () => {
   const { backendUrl, token, getDoctorsData } = useContext(AppContext)
   const [appointments, setAppointments] = useState([])
 
   const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  
+
   const slotDateFormat = (slotDate) => {
     const dateArray = slotDate.split('_')
     return dateArray[0] + ' ' + months[Number(dateArray[1])] + ' ' + dateArray[2]
   }
-  
+
   const navigate = useNavigate()
 
   const getUserAppointments = async () => {
@@ -43,45 +44,64 @@ const MyAppointments = () => {
     }
   }
 
-  // Stripe Payment
-  const appointmentStripe = async (appointmentId) => {
+  const appointmentKhalti = async (appointmentId) => {
     try {
-        // Send appointmentId to the backend to create the Stripe payment session
-        const { data } = await axios.post(backendUrl + '/api/user/payment-stripe', { appointmentId }, { headers: { token } });
+        const { data } = await axios.post(
+            backendUrl + '/api/user/payment-khalti', 
+            { appointmentId }, 
+            { headers: { token } }
+        );
+        
         if (data.success) {
-            // Redirect user to Stripe Checkout session
-            window.location.href = data.url;
+            // Store appointmentId in sessionStorage
+            sessionStorage.setItem('currentPaymentAppointmentId', appointmentId);
+            // Redirect to Khalti payment page
+            window.location.href = data.paymentUrl;
+        } else {
+            toast.error(data.message);
         }
     } catch (error) {
-        toast.error(error.message);
+        toast.error(error.response?.data?.message || error.message);
     }
-  }
+};
 
-  // Verify Stripe Payment
+  //effect to handle Khalti payment verification
   useEffect(() => {
     const queryParams = new URLSearchParams(window.location.search);
-    const sessionId = queryParams.get('session_id');
+    const pidx = queryParams.get('pidx');
     
-    if (sessionId) {
+    if (pidx) {
         const verifyPayment = async () => {
             try {
+                // Get appointmentId from sessionStorage
+                const appointmentId = sessionStorage.getItem('currentPaymentAppointmentId');
+                
+                if (!appointmentId) {
+                    toast.error("Payment verification failed: Appointment ID not found");
+                    return;
+                }
+                
                 const { data } = await axios.post(
-                    `${backendUrl}/api/user/verify-stripe`,
-                    { sessionId },
+                    `${backendUrl}/api/user/verify-khalti`,
+                    { pidx, appointmentId },
                     { headers: { token } }
                 );
 
                 if (data.success) {
                     toast.success("Payment successful!");
-                    // Refresh the appointments list
                     await getUserAppointments();
-                    // Remove the session_id from URL
-                    window.history.replaceState({}, '', '/my-appointments');
                 } else {
                     toast.error(data.message || "Payment verification failed");
                 }
+
+                // Clear stored appointmentId
+                sessionStorage.removeItem('currentPaymentAppointmentId');
+                // Clear URL parameters
+                window.history.replaceState({}, '', '/my-appointments');
             } catch (error) {
-                toast.error(error.message || "Error verifying payment");
+                toast.error(error.response?.data?.message || "Error verifying payment");
+                sessionStorage.removeItem('currentPaymentAppointmentId');
+                window.history.replaceState({}, '', '/my-appointments');
             }
         };
 
@@ -118,7 +138,14 @@ const MyAppointments = () => {
             <div className="flex flex-col gap-2 justify-end">
               {!item.cancelled && item.payment && !item.isCompleted && <button className="sm:min-w-48 py-2 border rounded text-stone-500 bg-indigo-50">Paid</button>}
 
-              {!item.cancelled && !item.payment && !item.isCompleted && <button onClick={() => { appointmentStripe(item._id) }} className="text-sm text-stone-500 text-center sm:min-w-48 py-2 border rounded hover:bg-primary hover:text-white transition-all duration-300">Pay Online</button>}
+              {!item.cancelled && !item.payment && !item.isCompleted && (
+                <button
+                  onClick={() => { appointmentKhalti(item._id) }}
+                  className="text-sm text-stone-500 text-center sm:min-w-48 py-2 border rounded hover:bg-primary hover:text-white transition-all duration-300"
+                >
+                  Pay with Khalti
+                </button>
+              )}
 
               {!item.cancelled && !item.isCompleted && <button onClick={() => { cancelAppointment(item._id) }} className="text-sm text-stone-500 text-center sm:min-w-48 py-2 border rounded hover:bg-red-600 hover:text-white transition-all duration-300">Cancel Appointment</button>}
 

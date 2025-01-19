@@ -20,7 +20,8 @@ const DoctorProfile = () => {
       const updateData = {
         address: profileData.address,
         fees: profileData.fees,
-        available: profileData.available
+        available: profileData.available,
+        about: profileData.about
       }
 
       const { data } = await axios.post(backendUrl + 'api/doctor/update-profile', updateData, { headers: { dToken } })
@@ -49,14 +50,14 @@ const DoctorProfile = () => {
   return profileData && (
     <div>
 
-      <div className='flex flex-col gap-4 m-5'>
+      <div className='flex flex-col gap-4 m-5 min-w-[800px]'>
 
         <div>
           <img className='bg-primary/80 w-full sm:max-w-64 rounded-lg' src={profileData.image} alt="" />
         </div>
 
         <div className='flex-1 border border-stone-100 rounded-lg p-8 py-7 bg-white'>
-          {/* DocInfo: Name, Degree & Experience */}
+          {/* DocInfo: Name, About, Degree & Experience */}
 
           <p className='flex items-center gap-2 text-3xl font-medium text-gray-700'>{profileData.name}</p>
           <div className='flex items-center gap-2 mt-1 text-gray-600'>
@@ -67,7 +68,18 @@ const DoctorProfile = () => {
           {/* DocAbout */}
           <div>
             <p className='flex items-center gap-1 text-sm font-medium text-neutral-800 mt-3'>About:</p>
-            <p className='text-sm text-gray-600 max-w-[700px] mt-1'>{profileData.about}</p>
+            <p className='text-sm text-gray-600 max-w-[700px] mt-1'>
+              {isEdit ? (
+                <textarea
+                  onChange={(e) => setProfileData(prev => ({ ...prev, about: e.target.value }))}
+                  value={profileData.about}
+                  className="w-full resize-y border border-gray-300 p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows="4"
+                />
+              ) : (
+                profileData.about
+              )}
+            </p>
           </div>
 
           <p className='text-gray-600 font-medium mt-4'>
