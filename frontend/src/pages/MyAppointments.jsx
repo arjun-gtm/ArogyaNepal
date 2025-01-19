@@ -46,17 +46,12 @@ const MyAppointments = () => {
 
   const appointmentKhalti = async (appointmentId) => {
     try {
-<<<<<<< HEAD
         const { data } = await axios.post(
             backendUrl + '/api/user/payment-khalti', 
             { appointmentId }, 
             { headers: { token } }
         );
         
-=======
-        // Send appointmentId to the backend to create the Stripe payment session
-        const { data } = await axios.post(backendUrl + 'api/user/payment-stripe', { appointmentId }, { headers: { token } });
->>>>>>> 08e1f94367fad104371ebc23d58a7356628b5ae6
         if (data.success) {
             // Store appointmentId in sessionStorage
             sessionStorage.setItem('currentPaymentAppointmentId', appointmentId);
@@ -87,13 +82,8 @@ const MyAppointments = () => {
                 }
                 
                 const { data } = await axios.post(
-<<<<<<< HEAD
                     `${backendUrl}/api/user/verify-khalti`,
                     { pidx, appointmentId },
-=======
-                    `${backendUrl}api/user/verify-stripe`,
-                    { sessionId },
->>>>>>> 08e1f94367fad104371ebc23d58a7356628b5ae6
                     { headers: { token } }
                 );
 
