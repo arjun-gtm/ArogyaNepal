@@ -513,6 +513,6 @@ const generateBill = async (req, res) => {
             message: 'Failed to generate bill: ' + error.message
         });
     }
-};
+}
 
 export { registerUser, loginUser, getProfile, updateProfile, bookAppointment, listAppointment, cancelAppointment, initiateKhaltiPayment, verifyKhaltiPayment, generateBill };
