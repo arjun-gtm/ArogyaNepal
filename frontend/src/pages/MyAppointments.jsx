@@ -4,6 +4,7 @@ import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useNavigate } from 'react-router-dom'
 import KhaltiCheckout from "khalti-checkout-web"
+import BillButton from '../components/BillButton'
 
 const MyAppointments = () => {
   const { backendUrl, token, getDoctorsData } = useContext(AppContext)
@@ -46,68 +47,68 @@ const MyAppointments = () => {
 
   const appointmentKhalti = async (appointmentId) => {
     try {
-        const { data } = await axios.post(
-            backendUrl + '/api/user/payment-khalti', 
-            { appointmentId }, 
-            { headers: { token } }
-        );
-        
-        if (data.success) {
-            // Store appointmentId in sessionStorage
-            sessionStorage.setItem('currentPaymentAppointmentId', appointmentId);
-            // Redirect to Khalti payment page
-            window.location.href = data.paymentUrl;
-        } else {
-            toast.error(data.message);
-        }
+      const { data } = await axios.post(
+        backendUrl + '/api/user/payment-khalti',
+        { appointmentId },
+        { headers: { token } }
+      );
+
+      if (data.success) {
+        // Store appointmentId in sessionStorage
+        sessionStorage.setItem('currentPaymentAppointmentId', appointmentId);
+        // Redirect to Khalti payment page
+        window.location.href = data.paymentUrl;
+      } else {
+        toast.error(data.message);
+      }
     } catch (error) {
-        toast.error(error.response?.data?.message || error.message);
+      toast.error(error.response?.data?.message || error.message);
     }
-};
+  };
 
   //effect to handle Khalti payment verification
   useEffect(() => {
     const queryParams = new URLSearchParams(window.location.search);
     const pidx = queryParams.get('pidx');
-    
+
     if (pidx) {
-        const verifyPayment = async () => {
-            try {
-                // Get appointmentId from sessionStorage
-                const appointmentId = sessionStorage.getItem('currentPaymentAppointmentId');
-                
-                if (!appointmentId) {
-                    toast.error("Payment verification failed: Appointment ID not found");
-                    return;
-                }
-                
-                const { data } = await axios.post(
-                    `${backendUrl}/api/user/verify-khalti`,
-                    { pidx, appointmentId },
-                    { headers: { token } }
-                );
+      const verifyPayment = async () => {
+        try {
+          // Get appointmentId from sessionStorage
+          const appointmentId = sessionStorage.getItem('currentPaymentAppointmentId');
 
-                if (data.success) {
-                    toast.success("Payment successful!");
-                    await getUserAppointments();
-                } else {
-                    toast.error(data.message || "Payment verification failed");
-                }
+          if (!appointmentId) {
+            toast.error("Payment verification failed: Appointment ID not found");
+            return;
+          }
 
-                // Clear stored appointmentId
-                sessionStorage.removeItem('currentPaymentAppointmentId');
-                // Clear URL parameters
-                window.history.replaceState({}, '', '/my-appointments');
-            } catch (error) {
-                toast.error(error.response?.data?.message || "Error verifying payment");
-                sessionStorage.removeItem('currentPaymentAppointmentId');
-                window.history.replaceState({}, '', '/my-appointments');
-            }
-        };
+          const { data } = await axios.post(
+            `${backendUrl}/api/user/verify-khalti`,
+            { pidx, appointmentId },
+            { headers: { token } }
+          );
 
-        verifyPayment();
+          if (data.success) {
+            toast.success("Payment successful!");
+            await getUserAppointments();
+          } else {
+            toast.error(data.message || "Payment verification failed");
+          }
+
+          // Clear stored appointmentId
+          sessionStorage.removeItem('currentPaymentAppointmentId');
+          // Clear URL parameters
+          window.history.replaceState({}, '', '/my-appointments');
+        } catch (error) {
+          toast.error(error.response?.data?.message || "Error verifying payment");
+          sessionStorage.removeItem('currentPaymentAppointmentId');
+          window.history.replaceState({}, '', '/my-appointments');
+        }
+      };
+
+      verifyPayment();
     }
-}, []);
+  }, []);
 
 
   useEffect(() => {
@@ -136,7 +137,15 @@ const MyAppointments = () => {
               </p>
             </div>
             <div className="flex flex-col gap-2 justify-end">
-              {!item.cancelled && item.payment && !item.isCompleted && <button className="sm:min-w-48 py-2 border rounded text-stone-500 bg-indigo-50">Paid</button>}
+              {/* {!item.cancelled && item.payment && !item.isCompleted && <button className="sm:min-w-48 py-2 border rounded text-stone-500 bg-indigo-50">Paid</button>} */}
+              {!item.cancelled && item.payment && !item.isCompleted && (
+                <div className="flex flex-col gap-2">
+                  <button className="sm:min-w-48 py-2 border rounded text-stone-500 bg-indigo-50">
+                    Paid
+                  </button>
+                  <BillButton appointmentId={item._id} />
+                </div>
+              )}
 
               {!item.cancelled && !item.payment && !item.isCompleted && (
                 <button

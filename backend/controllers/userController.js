@@ -6,9 +6,7 @@ import { v2 as cloudinary } from 'cloudinary'
 import doctorModel from '../models/doctorModel.js'
 import appointmentModel from '../models/appointmentModel.js'
 import axios from 'axios'
-// import Stripe from 'stripe'
-// import stripeLib from 'stripe'
-
+import PDFDocument from 'pdfkit'
 
 //API to register user
 
@@ -367,4 +365,154 @@ const verifyKhaltiPayment = async (req, res) => {
     }
 };
 
-export { registerUser, loginUser, getProfile, updateProfile, bookAppointment, listAppointment, cancelAppointment, initiateKhaltiPayment, verifyKhaltiPayment }
+// API to generate bill
+const generateBill = async (req, res) => {
+    try {
+        const { appointmentId } = req.params;
+
+        // Fetch appointment with populated data
+        const appointment = await appointmentModel.findById(appointmentId)
+            .populate({
+                path: 'docData',
+                select: 'name speciality'
+            })
+            .populate({
+                path: 'userData',
+                select: 'name email phone'
+            });
+
+        if (!appointment) {
+            return res.status(404).json({ success: false, message: 'Appointment not found' });
+        }
+
+        if (!appointment.userData || !appointment.docData) {
+            return res.status(400).json({
+                success: false,
+                message: 'Required appointment data is missing'
+            });
+        }
+
+        // Format dates
+        const billDate = new Date().toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        const months = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+
+        const slotDateFormat = (slotDate) => {
+            if (!slotDate || slotDate.split('_').length !== 3) return 'Invalid Date';
+            
+            const [year, monthIndex, day] = slotDate.split('_');
+            if (monthIndex < 0 || monthIndex > 11) return 'Invalid Month';
+
+            return `${year} ${months[monthIndex]} ${day}`;
+        };
+
+        const appointmentDate = appointment.slotDate
+            ? new Date(appointment.slotDate).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            })
+            : 'Invalid Date';
+
+        // Create PDF document
+        const doc = new PDFDocument({ margin: 50 });
+
+        // Set response headers
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=bill-${appointmentId}.pdf`);
+
+        // Pipe PDF to response
+        doc.pipe(res);
+
+        // Add header text
+        doc.fontSize(20).text('Arogya Nepal', 110, 50);
+        doc.fontSize(14).text('Medical Bill', 110, 75);
+
+        // Add horizontal line
+        doc.moveTo(50, 100).lineTo(550, 100).stroke();
+
+        // Bill and patient details
+        doc.fontSize(10);
+        const tableTop = 120;
+        const leftColumn = 50;
+        const middleColumn = 300;
+
+        // Bill details (left side)
+        doc.text('Bill Details:', leftColumn, tableTop);
+        doc.text(`Bill No: ${appointmentId}`, leftColumn, tableTop + 20);
+        doc.text(`Bill Date: ${billDate}`, leftColumn, tableTop + 35);
+
+        // Patient details (right side)
+        doc.text('Patient Details:', middleColumn, tableTop);
+        doc.text(`Name: ${appointment.userData.name}`, middleColumn, tableTop + 20);
+        doc.text(`Email: ${appointment.userData.email}`, middleColumn, tableTop + 35);
+        doc.text(`Phone: ${appointment.userData.phone}`, middleColumn, tableTop + 50);
+
+        // Add horizontal line
+        doc.moveTo(50, tableTop + 80).lineTo(550, tableTop + 80).stroke();
+
+        // Doctor and appointment details
+        const serviceTableTop = tableTop + 100;
+
+        // Table headers
+        doc.font('Helvetica-Bold').text('Doctor Details', leftColumn, serviceTableTop);
+        doc.text('Appointment Details', middleColumn, serviceTableTop);
+        doc.font('Helvetica');
+
+        // Table content
+        doc.text(`Doctor: Dr. ${appointment.docData.name.replace('Dr. ', '')}`, leftColumn, serviceTableTop + 20);
+        doc.text(`Speciality: ${appointment.docData.speciality}`, leftColumn, serviceTableTop + 35);
+        doc.text(`Date: ${slotDateFormat(appointment.slotDate)}`, middleColumn, serviceTableTop + 20);
+        doc.text(`Time: ${appointment.slotTime || 'N/A'}`, middleColumn, serviceTableTop + 35);
+
+        // Add horizontal line
+        doc.moveTo(50, serviceTableTop + 60).lineTo(550, serviceTableTop + 60).stroke();
+
+        // Payment details
+        const paymentTableTop = serviceTableTop + 80;
+        doc.font('Helvetica-Bold').text('Payment Details', leftColumn, paymentTableTop);
+        doc.font('Helvetica');
+
+        // Payment details table
+        const paymentTable = {
+            headers: ['Description', 'Amount'],
+            rows: [
+                ['Consultation Fee:', `NPR ${appointment.amount}`],
+                ['Payment Status:', appointment.payment ? 'Paid' : 'Pending'],
+                ['Payment Method:', 'Khalti'],
+                ['Transaction Date:', billDate]
+            ]
+        };
+
+        // Draw payment table
+        let yPosition = paymentTableTop + 20;
+        paymentTable.rows.forEach(row => {
+            doc.text(row[0], leftColumn, yPosition);
+            doc.text(row[1], leftColumn + 200, yPosition);
+            yPosition += 15;
+        });
+
+        // Footer
+        doc.fontSize(10)
+            .text('Thank you for choosing Arogya Nepal', 50, doc.page.height - 100, { align: 'center' })
+            .text('This is a computer generated bill', { align: 'center', italics: true });
+
+        // Finalize PDF
+        doc.end();
+
+    } catch (error) {
+        console.error('PDF generation error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to generate bill: ' + error.message
+        });
+    }
+};
+
+export { registerUser, loginUser, getProfile, updateProfile, bookAppointment, listAppointment, cancelAppointment, initiateKhaltiPayment, verifyKhaltiPayment, generateBill };
