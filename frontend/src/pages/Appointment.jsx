@@ -4,7 +4,8 @@ import { AppContext } from "../context/AppContext";
 import { assets } from "../assets/assets";
 import RelatedDoctors from "../components/RelatedDoctors";
 import { toast } from "react-toastify";
-import axios from "axios";
+import axios from "axios"
+import { IoChevronForward } from 'react-icons/io5'
 
 const Appointment = () => {
   const { docId } = useParams();
@@ -62,7 +63,7 @@ const Appointment = () => {
         const isSlotAvailable = docInfo.slots_booked[slotDate] && docInfo.slots_booked[slotDate].includes(slotTime) ? false : true
 
         if (isSlotAvailable) {
-            timeSlots.push({
+          timeSlots.push({
             datetime: new Date(currentDate),
             time: formattedTime
           })
@@ -185,6 +186,7 @@ const Appointment = () => {
               </p>
             ))}
           </div>
+
           <button onClick={bookAppointment} className='bg-primary text-white text-sm font-light px-14 py-3 rounded-full my-6'>Book Appointment</button>
 
         </div>
