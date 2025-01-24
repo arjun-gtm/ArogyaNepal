@@ -70,7 +70,7 @@ const loginUser = async (req, res) => {
 
         if (isMatch) {
             const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET)
-            res.json({ success: true, token })
+            res.json({ success: true, token ,message:"Login Successfull"})
         } else {
             res.json({ success: false, message: "Invalid Credentials!" })
         }
@@ -328,7 +328,6 @@ const verifyKhaltiPayment = async (req, res) => {
             }
         );
 
-        console.log('Khalti verification response:', response.data);
 
         if (response.data.status === 'Completed') {
 

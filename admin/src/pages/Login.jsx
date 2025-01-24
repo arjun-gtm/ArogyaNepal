@@ -32,6 +32,7 @@ const Login = () => {
           localStorage.setItem('aToken', data.token)
           setAToken(data.token)
           navigate('/admin-dashboard')
+          toast.success("Logged in successfully")
         } else {
           toast.error(data.message)
         }
@@ -43,6 +44,7 @@ const Login = () => {
           localStorage.setItem('dToken', data.token)
           setDToken(data.token)
           navigate('/doctor-dashboard')
+          toast.success("Logged in successfully")
         } else {
           toast.error(data.message)
         }

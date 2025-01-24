@@ -20,4 +20,3 @@ userRouter.post('/verify-khalti', authUser, verifyKhaltiPayment)
 userRouter.get('/generate-bill/:appointmentId', authUser, generateBill)
 
 export default userRouter
-
