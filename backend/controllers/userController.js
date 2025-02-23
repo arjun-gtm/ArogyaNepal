@@ -9,7 +9,6 @@ import axios from 'axios'
 import PDFDocument from 'pdfkit'
 
 //API to register user
-
 const registerUser = async (req, res) => {
 
     try {

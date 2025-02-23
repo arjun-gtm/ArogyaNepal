@@ -1,7 +1,10 @@
+import validator from "validator";
+import bcrypt from 'bcrypt'
+import {v2 as cloudinary} from 'cloudinary'
 import doctorModel from "../models/doctorModel.js"
-import bcrypt from "bcrypt"
-import jwt from "jsonwebtoken"
-import appointmentModel from "../models/appointmentModel.js"
+import jwt from 'jsonwebtoken'
+import appointmentModel from "../models/appointmentModel.js";
+import userModel from "../models/userModel.js";
 
 const changeAvailability = async (req, res) => {
     try {
@@ -28,6 +31,61 @@ const doctorList = async (req, res) => {
     } catch (error) {
         console.log(error)
         res.json({ success: false, message: error.message })
+    }
+}
+
+//API to register doctor
+const registerDoctor = async (req, res) => {
+    try {
+        const { name, email, password, confirmPassword, speciality, degree, experience, about, fees, address } = req.body;
+        const imageFile = req.file;
+
+        if (!name || !email || !password || !confirmPassword || !speciality || !degree || !experience || !about || !fees || !address) {
+            return res.json({ success: false, message: "Missing Information." });
+        }
+
+        if (!validator.isEmail(email)) {
+            return res.json({ success: false, message: "Please enter a valid email address." });
+        }
+
+        if (password.length < 8) {
+            return res.json({ success: false, message: "Password must be greater than 8 characters." });
+        }
+
+        if (password !== confirmPassword) {
+            return res.json({ success: false, message: "Passwords do not match." });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        const imageUpload = await cloudinary.uploader.upload(imageFile.path, { resource_type: "image" });
+        const imageUrl = imageUpload.secure_url;
+
+        const doctorData = {
+            name,
+            email,
+            image: imageUrl,
+            doctorId: imageUrl,
+            password: hashedPassword,
+            speciality,
+            degree,
+            experience,
+            about,
+            fees,
+            address: JSON.parse(address),
+            date: Date.now(),
+            isApproved: false  // New field
+        };
+
+        const newDoctor = new doctorModel(doctorData);
+        await newDoctor.save();
+
+        res.json({ success: true, message: "Doctor Registered Successfully. Waiting for Admin Approval." });
+
+    } catch (error) {
+        console.log(error);
+        res.json({ success: false, message: error.message });
     }
 }
 
@@ -195,4 +253,4 @@ const updateDoctorProfile = async (req, res) => {
 
 }
 
-export { changeAvailability, doctorList, loginDoctor, appointmentsDoctor, appointmentComplete, appointmentCancel, doctorDashboard, doctorProfile, updateDoctorProfile }
+export { changeAvailability, doctorList, loginDoctor, appointmentsDoctor, appointmentComplete, appointmentCancel, doctorDashboard, doctorProfile, updateDoctorProfile,registerDoctor }

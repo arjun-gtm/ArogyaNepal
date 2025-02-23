@@ -3,6 +3,7 @@ import { useState } from "react";
 import axios from 'axios'
 import { toast } from "react-toastify";
 import { set } from "mongoose";
+import Swal from "sweetalert2";
 
 export const DoctorContext = createContext()
 
@@ -34,42 +35,60 @@ const DoctorContextProvider = (props) => {
     }
 
     const completeAppointment = async (appointmentId) => {
-
-        try {
-
-            const { data } = await axios.post(backendUrl + 'api/doctor/complete-appointment', { appointmentId }, { headers: { dToken } })
-
-            if (data.success) {
-                toast.success(data.message)
-                getAppointments()
-            } else {
-                toast.error(data.message)
+        Swal.fire({
+            title: "Are you sure?",
+            text: "You are about to mark this appointment as completed.",
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonColor: "#28a745",
+            cancelButtonColor: "#3085d6",
+            confirmButtonText: "Yes, complete it!",
+            cancelButtonText: "No, keep pending!",
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    const { data } = await axios.post(`${backendUrl}api/doctor/complete-appointment`, { appointmentId }, { headers: { dToken } });
+    
+                    if (data.success) {
+                        Swal.fire("Completed!", "The appointment has been marked as completed.", "success");
+                        getAppointments();
+                    } else {
+                        Swal.fire("Error!", data.message, "error");
+                    }
+                } catch (error) {
+                    Swal.fire("Error!", "Something went wrong. Please try again.", "error");
+                }
             }
-
-        } catch (error) {
-            console.log(error)
-            toast.error(error.message)
-        }
-    }
-
+        });
+    };
+    
     const cancelAppointment = async (appointmentId) => {
-
-        try {
-
-            const { data } = await axios.post(backendUrl + 'api/doctor/cancel-appointment', { appointmentId }, { headers: { dToken } })
-
-            if (data.success) {
-                toast.success(data.message)
-                getAppointments()
-            } else {
-                toast.error(data.message)
+        Swal.fire({
+            title: "Are you sure?",
+            text: "You are about to cancel this appointment.",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#d33",
+            cancelButtonColor: "#3085d6",
+            confirmButtonText: "Yes, cancel it!",
+            cancelButtonText: "No, don't cancel!",
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    const { data } = await axios.post(`${backendUrl}api/doctor/cancel-appointment`, { appointmentId }, { headers: { dToken } });
+    
+                    if (data.success) {
+                        Swal.fire("Cancelled!", "The appointment has been cancelled.", "success");
+                        getAppointments();
+                    } else {
+                        Swal.fire("Error!", data.message, "error");
+                    }
+                } catch (error) {
+                    Swal.fire("Error!", "Something went wrong. Please try again.", "error");
+                }
             }
-
-        } catch (error) {
-            console.log(error)
-            toast.error(error.message)
-        }
-    }
+        });
+    };
 
     const getDashData = async () => {
 

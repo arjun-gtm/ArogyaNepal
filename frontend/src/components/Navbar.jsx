@@ -1,7 +1,8 @@
 import React, { useState, useContext } from 'react'
 import { assets } from '../assets/assets'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { AppContext } from '../context/AppContext';
+import { AppContext } from '../context/AppContext'
+import Swal from 'sweetalert2'
 
 const Navbar = () => {
 
@@ -12,9 +13,33 @@ const Navbar = () => {
     const [showMenu, setShowMenu] = useState(false)
 
     const logout = () => {
-        setToken(false)
-        localStorage.removeItem('token')
-        navigate('/')
+        Swal.fire({
+          title: "Are you sure?",
+          text: "You will be logged out from your account.",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonColor: "#d33",
+          cancelButtonColor: "#3085d6",
+          confirmButtonText: "Yes, Logout",
+          cancelButtonText: "No, Stay Logged In"
+        }).then((result) => {
+          if (result.isConfirmed) {
+            setToken(false);
+            localStorage.removeItem('token');
+            navigate('/');
+            Swal.fire({
+              title: "Logged Out",
+              text: "You have been successfully logged out.",
+              icon: "success",
+              confirmButtonColor: "#3085d6",
+            });
+          }
+        });
+      }
+
+    const adminLoginRedirect = () => {
+        const adminUrl = import.meta.env.VITE_ADMIN_URL;
+        window.open(`${adminUrl}/register-doctor`, '_blank');
     }
 
     return (
@@ -39,6 +64,17 @@ const Navbar = () => {
                 </NavLink>
             </ul>
             <div className='flex items-center gap-4'>
+
+                {!token && (
+                    <button
+                        onClick={adminLoginRedirect}
+                        className='text-stone-700 hover:bg-blue-50 text-xs px-3 py-1.5 rounded border border-blue-200 shadow-sm transition-all duration-200 hidden md:block font-medium'
+                    >
+                        Register as Doctor
+                    </button>
+                )}
+
+
                 {
                     token && userData
                         ? <div className='flex items-center gap-2 cursor-pointer group relative'>

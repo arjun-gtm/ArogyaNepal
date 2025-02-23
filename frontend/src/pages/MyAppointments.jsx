@@ -5,6 +5,7 @@ import { toast } from 'react-toastify'
 import { useNavigate } from 'react-router-dom'
 import KhaltiCheckout from "khalti-checkout-web"
 import BillButton from '../components/BillButton'
+import Swal from 'sweetalert2'
 
 const MyAppointments = () => {
   const { backendUrl, token, getDoctorsData } = useContext(AppContext)
@@ -31,19 +32,44 @@ const MyAppointments = () => {
   }
 
   const cancelAppointment = async (appointmentId) => {
-    try {
-      const { data } = await axios.post(backendUrl + '/api/user/cancel-appointment', { appointmentId }, { headers: { token } })
-      if (data.success) {
-        toast.success(data.message)
-        getUserAppointments()
-        getDoctorsData()
-      } else {
-        toast.error(data.message)
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "Do you really want to cancel this appointment?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, cancel it!",
+      cancelButtonText: "No, keep it"
+    })
+  
+    if (result.isConfirmed) {
+      try {
+        const { data } = await axios.post(
+          backendUrl + "/api/user/cancel-appointment",
+          { appointmentId },
+          { headers: { token } }
+        )
+  
+        if (data.success) {
+          Swal.fire({
+            title: "Cancelled!",
+            text: "Your appointment has been cancelled.",
+            icon: "success",
+            confirmButtonColor: "#3085d6",
+          })
+  
+          getUserAppointments()
+          getDoctorsData()
+        } else {
+          Swal.fire("Error!", data.message, "error")
+        }
+      } catch (error) {
+        Swal.fire("Error!", error.message, "error")
       }
-    } catch (error) {
-      toast.error(error.message)
     }
   }
+  
 
   const appointmentKhalti = async (appointmentId) => {
     try {
